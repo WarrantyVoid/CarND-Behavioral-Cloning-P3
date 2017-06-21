@@ -125,97 +125,124 @@ class LogDataGenerator:
     def get_output_shape(self):
         return (self.image_width, self.image_height, self.image_depth)
 
-    # Returns number of samples for one epoch
-    def get_training_size(self):
-        return len(self.x_train) * 14
+    # Returns number of batches for one epoch
+    def get_training_steps(self):
+        return np.ceil(len(self.x_train) * 14 / self.batch_size)
 
-    # Returns number of samples for one epoch
-    def get_validation_size(self):
-        return len(self.x_valid) * 14
+    # Returns number of batches for one epoch
+    def get_validation_steps(self):
+        return np.ceil(len(self.x_valid) * 14 / self.batch_size)
 
     # Generate data for training
     def generate_training_data(self):
         while True:
-            yield self.generate_data(self.x_train, self.y_train).next()
+            yield next(self.generate_data(self.x_train, self.y_train))
 
     # Generate data for testing
     def generate_validation_data(self):
         while True:
-            yield self.generate_data(self.x_valid, self.y_valid).next()
+            yield next(self.generate_data(self.x_valid, self.y_valid))
 
     # Actual implementation of data generation
     def generate_data(self, x_data, y_data):
         # Memory allocation
-        x_gen = np.zeroes([self.batch_size, self.image_height, self.image_width, self.image_depth])
-        y_gen = np.zeroes([self.batch_size])
+        x_gen = np.zeros([self.batch_size, self.image_height, self.image_width, self.image_depth])
+        y_gen = np.zeros([self.batch_size])
         while True:
             # New epoch
-            shuffle(x_data, y_data)
+            x_data, y_data = shuffle(x_data, y_data)
             count_gen = 0
             for i in range(len(x_data)):
                 # Generate center + augmentations
                 center = pre.load(x_data[i][0])
                 center_steer = y_data[i]
                 count_gen = self.generate_feature(center, center_steer, x_gen, y_gen, count_gen)
+                if count_gen == 0:
+                    yield x_gen, y_gen
 
                 image, steering = self.flip_feature(center, center_steer)
                 count_gen = self.generate_feature(image, steering, x_gen, y_gen, count_gen)
+                if count_gen == 0:
+                    yield x_gen, y_gen
 
                 image, steering = self.shear_feature(center, center_steer, random.uniform(-25, -15))
                 count_gen = self.generate_feature(image, steering, x_gen, y_gen, count_gen)
+                if count_gen == 0:
+                    yield x_gen, y_gen
 
                 image, steering = self.flip_feature(image, steering)
                 count_gen = self.generate_feature(image, steering, x_gen, y_gen, count_gen)
+                if count_gen == 0:
+                    yield x_gen, y_gen
 
                 image, steering = self.shear_feature(center, center_steer, random.uniform(+15, +25))
                 count_gen = self.generate_feature(image, steering, x_gen, y_gen, count_gen)
+                if count_gen == 0:
+                    yield x_gen, y_gen
 
                 image, steering = self.flip_feature(image, steering)
                 count_gen = self.generate_feature(image, steering, x_gen, y_gen, count_gen)
+                if count_gen == 0:
+                    yield x_gen, y_gen
 
                 # Generate left + augmentations
                 left = pre.load(x_data[i][1])
                 left_steer = pre.adjust_steering_by_offset(y_data[i], POS_LEFT_CAM, steering_distance, STEERING_FACTOR)
                 count_gen = self.generate_feature(left, left_steer, x_gen, y_gen, count_gen)
+                if count_gen == 0:
+                    yield x_gen, y_gen
 
                 image, steering = self.flip_feature(left, left_steer)
                 count_gen = self.generate_feature(image, steering, x_gen, y_gen, count_gen)
+                if count_gen == 0:
+                    yield x_gen, y_gen
 
                 image, steering = self.shear_feature(left, left_steer, random.uniform(-25, -15))
                 count_gen = self.generate_feature(image, steering, x_gen, y_gen, count_gen)
+                if count_gen == 0:
+                    yield x_gen, y_gen
 
                 image, steering = self.flip_feature(image, steering)
                 count_gen = self.generate_feature(image, steering, x_gen, y_gen, count_gen)
+                if count_gen == 0:
+                    yield x_gen, y_gen
 
                 # Generate right + augmentations
                 right = pre.load(x_data[i][2])
                 right_steer = pre.adjust_steering_by_offset(y_data[i], POS_RIGHT_CAM, steering_distance, STEERING_FACTOR)
                 count_gen = self.generate_feature(right, right_steer, x_gen, y_gen, count_gen)
+                if count_gen == 0:
+                    yield x_gen, y_gen
 
                 image, steering = self.flip_feature(right, right_steer)
                 count_gen = self.generate_feature(image, steering, x_gen, y_gen, count_gen)
+                if count_gen == 0:
+                    yield x_gen, y_gen
 
                 image, steering = self.shear_feature(right, right_steer, random.uniform(+15, +25))
                 count_gen = self.generate_feature(image, steering, x_gen, y_gen, count_gen)
+                if count_gen == 0:
+                    yield x_gen, y_gen
 
                 image, steering = self.flip_feature(image, steering)
                 count_gen = self.generate_feature(image, steering, x_gen, y_gen, count_gen)
+                if count_gen == 0:
+                    yield x_gen, y_gen
 
+            # Yield remainder
             if count_gen > 0:
                 yield x_gen, y_gen
-                count_gen = 0
 
-    # Generates a new feature and increases count
+    # Generates a new feature sample and increases count
     def generate_feature(self, image, steering, x_gen, y_gen, count_gen):
         x_gen[count_gen] = pre.preprocess(image)
         y_gen[count_gen] = steering
         count_gen += 1
         if count_gen >= self.batch_size:
-            yield x_gen, y_gen
             count_gen = 0
         return count_gen
 
-    # Applies shearing to an image and steering
+    # Applies shearing to image and steering
     def shear_feature(self, image, steering, angle):
         #fig = plt.figure(figsize=(12, 4))
         #plt.title('Augmentation Test')
@@ -236,7 +263,7 @@ class LogDataGenerator:
         #plt.show()
         return image1, pre.adjust_steering_by_angle(steering, angle / 2)
 
-    # Applies flipping to an image and steering
+    # Applies flipping to image and steering
     def flip_feature(self, image, steering):
         image = pre.flip_horizontal(image)
         return image, -steering
@@ -260,9 +287,9 @@ if __name__ == '__main__':
     model.compile(loss='mse', optimizer='adam')
     history = model.fit_generator(
         generator=data_gen.generate_training_data(),
-        steps_per_epoch=data_gen.get_training_size(),
+        steps_per_epoch=data_gen.get_training_steps(),
         validation_data=data_gen.generate_validation_data(),
-        validation_steps=data_gen.get_validation_size(),
+        validation_steps=data_gen.get_validation_steps(),
         nb_epoch=4)
 
     print("Saving..")
