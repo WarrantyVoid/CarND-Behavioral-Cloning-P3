@@ -19,13 +19,10 @@ import visualization as vis
 POS_LEFT_CAM = (-1.0 / 6.0)
 
 # Relative position of right cam (in road width ratio)
-POS_RIGHT_CAM = (+1.0 / 6.0)
+POS_RIGHT_CAM = (1.0 / 6.0)
 
 # Steering horizon (in road width ratio)
 steering_distance = 2.0
-
-# Factor in between steering unit and degree
-STEERING_FACTOR = 25
 
 
 ############ Functions ############
@@ -48,7 +45,7 @@ def filter_log_data(log_data):
     # Calculate histogram with angle resolution
     images = log_data['features']
     steering = log_data['labels']
-    histogram = np.histogram(steering, bins=np.arange(-1.0, 1.0, 1.0 / STEERING_FACTOR))
+    histogram = np.histogram(steering, bins=np.arange(-1.0, 1.0, 1.0 / pre.STEERING_FACTOR))
     vis.show_cumulated_graph([steering], ['steering'], title='Cumulated steering angles before filtering')
     vis.show_bar_graph(histogram, title='Steering angle histogram before filtering')
 
@@ -67,14 +64,14 @@ def filter_log_data(log_data):
     filtered_images = []
     filtered_steering = []
     for i in range(len(steering)):
-        keep_it = keep_probabilities[int(np.floor((1.0 + steering[i]) * STEERING_FACTOR))]
+        keep_it = keep_probabilities[int(np.floor((1.0 + steering[i]) * pre.STEERING_FACTOR))]
         if random.uniform(0.0, 1.0) <= keep_it:
             filtered_images.append(images[i])
             filtered_steering.append(steering[i])
-    histogram = np.histogram(filtered_steering, bins=np.arange(-1.0, 1.0, 1.0 / STEERING_FACTOR))
+    histogram = np.histogram(filtered_steering, bins=np.arange(-1.0, 1.0, 1.0 / pre.STEERING_FACTOR))
     vis.show_cumulated_graph([filtered_steering], ['steering'], title='Cumulated steering angles after filtering')
     vis.show_bar_graph(histogram, title='Steering angle histogram after filtering')
-    return {'features': np.array(filtered_images), 'labels': np.array(filtered_steering) }
+    return {'features': np.array(filtered_images), 'labels': np.array(filtered_steering)}
 
 
 # Creates the neural network model in Keras
@@ -102,6 +99,7 @@ def create_model(input_shape):
     model.add(Dense(1))
     return model
 
+
 ############ Classes ############
 
 
@@ -123,7 +121,7 @@ class LogDataGenerator:
 
     # Returns output shape of data
     def get_output_shape(self):
-        return (self.image_width, self.image_height, self.image_depth)
+        return self.image_width, self.image_height, self.image_depth
 
     # Returns number of batches for one epoch
     def get_training_steps(self):
@@ -175,7 +173,7 @@ class LogDataGenerator:
                 if count_gen == 0:
                     yield x_gen, y_gen
 
-                image, steering = self.shear_feature(center, center_steer, random.uniform(+15, +25))
+                image, steering = self.shear_feature(center, center_steer, random.uniform(15, 25))
                 count_gen = self.generate_feature(image, steering, x_gen, y_gen, count_gen)
                 if count_gen == 0:
                     yield x_gen, y_gen
@@ -187,7 +185,7 @@ class LogDataGenerator:
 
                 # Generate left + augmentations
                 left = pre.load(x_data[i][1])
-                left_steer = pre.adjust_steering_by_offset(y_data[i], POS_LEFT_CAM, steering_distance, STEERING_FACTOR)
+                left_steer = pre.adjust_steering_by_offset(center_steer, POS_LEFT_CAM, steering_distance)
                 count_gen = self.generate_feature(left, left_steer, x_gen, y_gen, count_gen)
                 if count_gen == 0:
                     yield x_gen, y_gen
@@ -197,7 +195,7 @@ class LogDataGenerator:
                 if count_gen == 0:
                     yield x_gen, y_gen
 
-                image, steering = self.shear_feature(left, left_steer, random.uniform(-25, -15))
+                image, steering = self.shear_feature(left, left_steer, random.uniform(15, 25))
                 count_gen = self.generate_feature(image, steering, x_gen, y_gen, count_gen)
                 if count_gen == 0:
                     yield x_gen, y_gen
@@ -209,7 +207,7 @@ class LogDataGenerator:
 
                 # Generate right + augmentations
                 right = pre.load(x_data[i][2])
-                right_steer = pre.adjust_steering_by_offset(y_data[i], POS_RIGHT_CAM, steering_distance, STEERING_FACTOR)
+                right_steer = pre.adjust_steering_by_offset(center_steer, POS_RIGHT_CAM, steering_distance)
                 count_gen = self.generate_feature(right, right_steer, x_gen, y_gen, count_gen)
                 if count_gen == 0:
                     yield x_gen, y_gen
@@ -219,7 +217,7 @@ class LogDataGenerator:
                 if count_gen == 0:
                     yield x_gen, y_gen
 
-                image, steering = self.shear_feature(right, right_steer, random.uniform(+15, +25))
+                image, steering = self.shear_feature(right, right_steer, random.uniform(-25, -15))
                 count_gen = self.generate_feature(image, steering, x_gen, y_gen, count_gen)
                 if count_gen == 0:
                     yield x_gen, y_gen
@@ -249,16 +247,15 @@ class LogDataGenerator:
         #fig.subplots_adjust(hspace=0.1, wspace=0.1)
         #plt.axis('off')
         #axis = fig.add_subplot(1, 3, 1)
-        #axis.imshow(image)#((pre.preprocess(image) + 0.5) * 255).astype(np.uint8))
+        #axis.imshow(image)
         #axis.set_title('original')
         image1 = pre.shear(image, angle)
         #axis = fig.add_subplot(1, 3, 2)
-        #axis.imshow(image1)#((image1 + 0.5) * 255).astype(np.uint8))
+        #axis.imshow(image1)
         #axis.set_title('sheared')
-        #image2 = pre.rotate(image, angle)
-        #image2 = pre.preprocess(image2)
+        ##image2 = pre.rotate(image, angle)
         #axis = fig.add_subplot(1, 3, 3)
-        #axis.imshow(image2)#((image2 + 0.5) * 255).astype(np.uint8))
+        ##axis.imshow(image2)
         #axis.set_title('rotated')
         #plt.show()
         return image1, pre.adjust_steering_by_angle(steering, angle / 2)
@@ -282,7 +279,7 @@ if __name__ == '__main__':
     print("{} Entries".format(len(log_data)))
 
     print("Training..")
-    data_gen = LogDataGenerator(log_data, 0.2, 256)
+    data_gen = LogDataGenerator(log_data, 0.2, 512)
     model = create_model(data_gen.get_output_shape())
     model.compile(loss='mse', optimizer='adam')
     history = model.fit_generator(

@@ -2,6 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
+############ Functions ############
+
+
+# Shows data as bar graphs
 def show_bar_graph(data, title=None, log_scale=False):
     x = data[1]
     y = data[0]
@@ -20,6 +24,8 @@ def show_bar_graph(data, title=None, log_scale=False):
         axis.set_yscale('log')
     plt.show()
 
+
+# Shows cumulated data values
 def show_cumulated_graph(data, labels, title=None):
     handles = []
     for i in range(len(data)):
@@ -30,7 +36,9 @@ def show_cumulated_graph(data, labels, title=None):
         plt.title(title)
     plt.show()
 
-def  show_learn_history(data, title=None):
+
+# Shows a Keras learning history
+def show_learn_history(data, title=None):
     plt.plot(data.history['loss'])
     plt.plot(data.history['val_loss'])
     plt.title('model mean squared error loss')
