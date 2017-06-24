@@ -18,21 +18,26 @@ def show_bar_graph(data, title=None, log_scale=False):
     axis.bar(x_bar, y, width=x[1]-x[0], edgecolor="#000077")
     #axis.set_xticks(x)
     #axis.set_xticklabels(x)
-    if title != None:
+    if title is not None:
         plt.title(title)
     if log_scale:
         axis.set_yscale('log')
     plt.show()
 
 
-# Shows cumulated data values
-def show_cumulated_graph(data, labels, title=None):
+# Shows labeled data values
+def show_labeled_graph(data, labels, title=None, invert_y=False):
+    fig = plt.figure(figsize=(15, 5))
     handles = []
     for i in range(len(data)):
-        h, = plt.plot(np.cumsum(data[i]), label=labels[i])
+        h, = plt.plot(data[i], label=labels[i])
         handles.append(h)
+    fig.get_axes()[0].set_axisbelow(True)
+    fig.get_axes()[0].grid(True, linestyle=":")
     plt.legend(handles=handles)
-    if title != None:
+    if invert_y:
+        fig.get_axes()[0].invert_yaxis()
+    if title is not None:
         plt.title(title)
     plt.show()
 

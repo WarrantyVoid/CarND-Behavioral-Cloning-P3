@@ -6,7 +6,6 @@ import shutil
 
 import numpy as np
 import socketio
-import eventlet
 import eventlet.wsgi
 from PIL import Image
 from flask import Flask
@@ -17,7 +16,6 @@ import h5py
 from keras import __version__ as keras_version
 
 import preprocessing
-import visualization
 
 sio = socketio.Server()
 app = Flask(__name__)
@@ -47,7 +45,7 @@ class SimplePIController:
 
 
 controller = SimplePIController(0.1, 0.002)
-set_speed = 9
+set_speed = 19
 controller.set_desired(set_speed)
 
 @sio.on('telemetry')
@@ -72,8 +70,6 @@ def telemetry(sid, data):
         print(steering_angle, throttle)
         send_control(steering_angle, throttle)
 
-        steerings.append(steering_angle)
-
         # save frame
         if args.image_folder != '':
             timestamp = datetime.utcnow().strftime('%Y_%m_%d_%H_%M_%S_%f')[:-3]
@@ -83,27 +79,11 @@ def telemetry(sid, data):
         # NOTE: DON'T EDIT THIS.
         sio.emit('manual', data={}, skip_sid=True)
 
-import csv
-steerings = []
-target_steerings = []
-with open('data/driving_log.csv') as csvfile:
-    reader = csv.reader(csvfile, skipinitialspace=True)
-    skip = True
-    for line in reader:
-        if skip:
-            skip = False
-        else:
-            target_steerings.append(float(line[3]))
 
 @sio.on('connect')
 def connect(sid, environ):
     print("connect ", sid)
     send_control(0, 0)
-    a = np.array(steerings)
-    b = np.array(target_steerings)
-    visualization.show_cumulated_graph([a, b], ["autonomous", "training"])
-    steerings.clear()
-
 
 
 def send_control(steering_angle, throttle):
